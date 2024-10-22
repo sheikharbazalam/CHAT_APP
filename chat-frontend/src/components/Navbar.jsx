@@ -8,7 +8,7 @@ function Navbar() {
     <nav className="navbar navbar-expand-lg bg-body-tertiary">
       <div className="container-fluid header">
         <a className="navbar-brand" href="#">
-          Authentication App
+          A ZONE
         </a>
         <button
           className="navbar-toggler"

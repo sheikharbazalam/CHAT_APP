@@ -11,9 +11,9 @@ function App() {
   const { isAuthenticated } = useAuth0();
 
   return (
+    
     <Router>
       <div>
-        hello
         <Navbar />
         {isAuthenticated ? (
           <Routes>

@@ -15,6 +15,7 @@ const socket = io("http://localhost:4000");
 
 const ChatBox = () => {
   const [messages, setMessages] = useState([]);
+
   const [input, setInput] = useState("");
   const [userId, setUserId] = useState(null);
   const [image, setImage] = useState(null);
@@ -28,12 +29,20 @@ const ChatBox = () => {
     }
     setUserId(storedUserId);
 
-    // Listen for messages
+    //Fetch and listen for previous messages sent by the server
+    //socket.emit("getMessages");
+
+    socket.on("previousMessagesSent", (previousMessagesSent) => {
+      setMessages(previousMessagesSent);
+    });
+
+    // Listen for incoming messages
     socket.on("receiveMessage", (message) => {
       setMessages((prevMessages) => [...prevMessages, message]);
     });
 
     return () => {
+      socket.off("previousMessagesSent");
       socket.off("receiveMessage");
     };
   }, []);
@@ -41,13 +50,15 @@ const ChatBox = () => {
   const sendMessage = () => {
     if (input.trim() || image) {
       const message = {
+        email: "thespoof1@gmail.com",
+        password: "thespoof@A1",
         userId,
         text: input.trim() ? input : null,
         image: image ? URL.createObjectURL(image) : null,
       };
 
       socket.emit("sendMessage", message);
-      //   setMessages((prevMessages) => [...prevMessages, message]);
+      //setMessages((prevMessages) => [...prevMessages, message]);
       setInput("");
       setImage(null);
     }
