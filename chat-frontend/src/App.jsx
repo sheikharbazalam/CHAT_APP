@@ -6,12 +6,20 @@ import Home from "./pages/Home";
 import { useAuth0 } from "@auth0/auth0-react";
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 import Navbar from "./components/Navbar";
+import { useEffect } from "react";
 
 function App() {
-  const { isAuthenticated } = useAuth0();
+  const { isAuthenticated, user } = useAuth0();
+
+  useEffect(() => {
+    if (isAuthenticated && user?.email) {
+      sessionStorage.setItem("userEmail", user.email);
+      //const userEmail = sessionStorage.getItem("userEmail");
+      console.log("User email from session storage:", user.email);
+    }
+  }, [isAuthenticated, user]);
 
   return (
-    
     <Router>
       <div>
         <Navbar />
