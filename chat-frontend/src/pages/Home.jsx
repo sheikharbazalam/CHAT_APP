@@ -1,4 +1,3 @@
-import React from "react";
 import { ChakraProvider, Box, Heading } from "@chakra-ui/react";
 import ChatBox from "../components/ChatBox";
 

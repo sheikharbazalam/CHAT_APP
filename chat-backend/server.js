@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
@@ -5,14 +6,13 @@ const multer = require("multer");
 const cors = require("cors");
 
 const mongoose = require("mongoose");
-//const { timeStamp } = require("timeStamp");
-const timeStamp = require("timeStamp");
 
-//const { timeStamp } = require("console");
+const timeStamp = require("timeStamp");
+const path = require("path");
 
 const app = express();
 app.use(cors());
-app.use("/uploads", express.static("uploads"));
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 const storage = multer.diskStorage({
   destination: "uploads/",
@@ -59,10 +59,7 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  password: {
-    type: String,
-    required: true,
-  },
+
   image: {
     type: String,
     required: false,
@@ -85,10 +82,7 @@ const messageSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  password: {
-    type: String,
-    required: true,
-  },
+
   image: {
     type: String,
     required: false,
@@ -104,10 +98,12 @@ const messageSchema = new mongoose.Schema({
 //username:drjdchat
 
 mongoose
-  .connect(
-    "mongodb+srv://drjdchat:drjdnurjaha1@drjdchat.ge1uv.mongodb.net/chatApp?retryWrites=true&w=majority&appName=DRJDCHAT",
-    { connectTimeoutMS: 30000 }
-  )
+  .connect(process.env.MONGODB_URI, {
+    connectTimeoutMS: 30000,
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+    //useCreateIndex: true, // Use this if you are using an older version of mongoose
+  })
   .then(() => console.log("mongodb connected"))
   .catch((err) => console.log("mongodb error", err));
 // Model

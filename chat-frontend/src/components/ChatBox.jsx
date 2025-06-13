@@ -94,8 +94,9 @@ const ChatBox = () => {
   const sendMessage = () => {
     if (input.trim() || image) {
       const message = {
-        email: "thespoof318@gmail.com",
-        password: "thespoof1A1",
+        email: userEmail,
+        //password: sessionStorage.getItem("password") || "", // Assuming password is stored in session storage
+
         userId,
         text: input.trim() ? input : null,
         image: image ? URL.createObjectURL(image) : null,
@@ -150,27 +151,39 @@ const ChatBox = () => {
     messagesEndRef.current?.scrollIntoView({ behaviour: "smooth" });
   };
 
-  const handleSendVoice = async (file) => {
-    const formData = new FormData();
-    formData.append("voice", file);
-    formData.append("userId", userId);
+  // const handleSendVoice = async (file) => {
+  //   const formData = new FormData();
+  //   formData.append("voice", file);
+  //   formData.append("userId", userId);
 
-    await fetch("http://localhost:4000/upload-voice", {
-      method: "POST",
-      body: formData,
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        console.log("Voice message sent:", data);
-        setMessages((prevMessages) => [
-          ...prevMessages,
-          { userId, voice: data.voiceUrl },
-        ]);
-        scrollToBottom();
-      })
-      .catch((error) => {
-        console.error("Error sending voice message:", error);
-      });
+  //   await fetch("http://localhost:4000/upload-voice", {
+  //     method: "POST",
+  //     body: formData,
+  //   })
+  //     .then((response) => response.json())
+  //     .then((data) => {
+  //       console.log("Voice message sent:", data);
+  //       setMessages((prevMessages) => [
+  //         ...prevMessages,
+  //         { userId, voice: data.voiceUrl },
+  //       ]);
+  //       scrollToBottom();
+  //     })
+  //     .catch((error) => {
+  //       console.error("Error sending voice message:", error);
+  //     });
+  // };
+  const handleSendVoice = (voiceUrl) => {
+    const message = {
+      userId,
+      email: userEmail,
+      text: null,
+      image: null,
+      audioUrl: voiceUrl,
+    };
+    socket.emit("sendMessage", message);
+    setMessages((prevMessages) => [...prevMessages, message]);
+    scrollToBottom();
   };
 
   return (
@@ -190,12 +203,22 @@ const ChatBox = () => {
               maxW="70%"
             >
               {msg.text && <Text>{msg.text}</Text>}
+
               {msg.image && (
                 <img src={msg.image} alt="Sent" style={{ maxWidth: "100px" }} />
               )}
               {msg.audioUrl && (
-                <audio controls>
-                  <source src={msg.audioUrl} type="audio/webm" />
+                <audio
+                  controls
+                  onLoadedMetadata={(e) => {
+                    const duration = e.target.duration;
+                    console.log(`Audio duration: ${duration} seconds`);
+                  }}
+                >
+                  <source
+                    src={`http://localhost:4000${msg.audioUrl}`}
+                    type="audio/webm"
+                  />
                   Your browser does not support the audio element.
                 </audio>
               )}
