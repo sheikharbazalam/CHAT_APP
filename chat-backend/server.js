@@ -68,6 +68,45 @@ app.post("/chatgpt-message", async (req, res) => {
     res.status(500).json({ error: "Error fetching chatgpt message" });
   }
 });
+
+//endpoint to set user preferred language
+app.post("/api/set-preferred-language", async (req, res) => {
+  const { email, language } = req.body;
+  try {
+    await User.updateOne(
+      { email },
+      { preferredLanguage: language },
+      { upsert: true } // Create a new user if not exists
+    );
+    res.json({
+      success: true,
+      message: "Preferred language updated successfully",
+    });
+  } catch (error) {
+    console.error("Error updating preferred language:", error);
+    res.status(500).json({ error: "Error updating preferred language" });
+  }
+});
+
+//Translation utility Function
+const translateMessage = async (text, targetLanguage) => {
+  const apiKey = process.env.GOOGLE_TRANSLATE_API_KEY; // Ensure you have set this in your environment variables
+  const url = `https://translation.googleapis.com/language/translate/v2?key=${apiKey}`;
+  try {
+    const response = await axios.post(url, {
+      q: text,
+      target: targetLanguage,
+      format: "text",
+    });
+    return response.data.data.translations[0].translatedText;
+  } catch (error) {
+    console.error(
+      "Error translating message:",
+      error.response?.data || error.message
+    );
+    return text; // Return original message if translation fails
+  }
+};
 //app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json({ limit: "50mb" })); // Increase the limit to 50mb
@@ -95,6 +134,14 @@ const userSchema = new mongoose.Schema({
   },
 
   timeStamp: {
+    type: Date,
+    default: Date.now,
+  },
+  preferredLanguage: {
+    type: String,
+    default: "en", // Default language is English
+  },
+  createdAt: {
     type: Date,
     default: Date.now,
   },
@@ -207,10 +254,20 @@ io.on("connection", async (socket) => {
         });
         await user.save();
       }
+      const recipient = await User.findOne({ email: message.email });
+      const targetLanguage = recipient?.preferredLanguage || "en"; // Default to English if no preference is set
+
+      let translatedText = message.text;
+      if (message.text && targetLanguage !== "en") {
+        translatedText = await translateMessage(message.text, targetLanguage);
+      }
+
       const newMessage = new Message({
         email: message.email,
         password: message.password,
-        text: message.text,
+        //text: message.text,
+        text: translatedText, // Use the translated text
+
         //image: message.image || null, //it will handle image URL
         ...(message.image && { image: message.image }),
       });
@@ -219,6 +276,7 @@ io.on("connection", async (socket) => {
 
       io.emit("receiveMessage", {
         ...message,
+        text: translatedText, // Use the translated text
         userId: message.userId,
       });
     } catch (error) {

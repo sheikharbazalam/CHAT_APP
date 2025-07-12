@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import MessageBubble from "./MessageBubble"; // Import the MessageBubble component
 
 import { FaPlus, FaPaperPlane } from "react-icons/fa";
+
 import {
   Box,
   Input,
@@ -18,6 +19,91 @@ import VoiceRecorder from "./VoiceRecord"; // Import the VoiceRecorder component
 
 const socket = io("http://localhost:4000");
 
+const LANGUAGES = [
+  { code: "en", name: "English" },
+  { code: "es", name: "Spanish" },
+  { code: "fr", name: "French" },
+  { code: "de", name: "German" },
+  { code: "zh", name: "Chinese" },
+  { code: "ar", name: "Arabic" },
+  { code: "hi", name: "Hindi" },
+  { code: "ru", name: "Russian" },
+  { code: "pt", name: "Portuguese" },
+  { code: "ja", name: "Japanese" },
+  { code: "ko", name: "Korean" },
+  { code: "it", name: "Italian" },
+  { code: "nl", name: "Dutch" },
+  { code: "tr", name: "Turkish" },
+  { code: "pl", name: "Polish" },
+  { code: "sv", name: "Swedish" },
+  { code: "no", name: "Norwegian" },
+  { code: "fi", name: "Finnish" },
+  { code: "da", name: "Danish" },
+  { code: "el", name: "Greek" },
+  { code: "he", name: "Hebrew" },
+  { code: "th", name: "Thai" },
+  { code: "vi", name: "Vietnamese" },
+  { code: "id", name: "Indonesian" },
+  { code: "ms", name: "Malay" },
+  { code: "tl", name: "Tagalog" },
+  { code: "uk", name: "Ukrainian" },
+  { code: "ro", name: "Romanian" },
+  { code: "hu", name: "Hungarian" },
+  { code: "cs", name: "Czech" },
+  { code: "sk", name: "Slovak" },
+  { code: "bg", name: "Bulgarian" },
+  { code: "hr", name: "Croatian" },
+  { code: "sl", name: "Slovenian" },
+  { code: "lt", name: "Lithuanian" },
+  { code: "lv", name: "Latvian" },
+  { code: "et", name: "Estonian" },
+  { code: "is", name: "Icelandic" },
+  { code: "ga", name: "Irish" },
+  { code: "cy", name: "Welsh" },
+  { code: "eu", name: "Basque" },
+  { code: "gl", name: "Galician" },
+  { code: "ca", name: "Catalan" },
+  { code: "az", name: "Azerbaijani" },
+  { code: "hy", name: "Armenian" },
+  { code: "ka", name: "Georgian" },
+  { code: "mk", name: "Macedonian" },
+  { code: "sr", name: "Serbian" },
+  { code: "bs", name: "Bosnian" },
+  { code: "mn", name: "Mongolian" },
+  { code: "sw", name: "Swahili" },
+  { code: "yo", name: "Yoruba" },
+  { code: "zu", name: "Zulu" },
+  { code: "am", name: "Amharic" },
+  { code: "af", name: "Afrikaans" },
+  { code: "bn", name: "Bengali" },
+  { code: "pa", name: "Punjabi" },
+  { code: "gu", name: "Gujarati" },
+  { code: "ta", name: "Tamil" },
+  { code: "te", name: "Telugu" },
+  { code: "ml", name: "Malayalam" },
+  { code: "kn", name: "Kannada" },
+  { code: "mr", name: "Marathi" },
+  { code: "or", name: "Odia" },
+  { code: "si", name: "Sinhala" },
+  { code: "ne", name: "Nepali" },
+  { code: "ur", name: "Urdu" },
+  { code: "fa", name: "Persian" },
+  { code: "ps", name: "Pashto" },
+  { code: "sd", name: "Sindhi" },
+  { code: "ku", name: "Kurdish" },
+  { code: "tg", name: "Tajik" },
+  { code: "uz", name: "Uzbek" },
+  { code: "ky", name: "Kyrgyz" },
+  { code: "tk", name: "Turkmen" },
+  { code: "az", name: "Azerbaijani" },
+  { code: "my", name: "Burmese" },
+  { code: "mai", name: "Maithili" },
+  { code: "bho", name: "Bhojpuri" },
+  { code: "mni-Mtei", name: "Manipuri (Meitei Mayek)" },
+  { code: "doi", name: "Dogri" },
+  { code: "ks", name: "Kashmiri" },
+];
+
 const ChatBox = () => {
   const [messages, setMessages] = useState([]);
 
@@ -29,8 +115,12 @@ const ChatBox = () => {
   const messagesEndRef = useRef(null);
   const [replyTo, setReplyTo] = useState(null);
   //const userEmail = sessionStorage.getItem("userEmail");
+  const [preferredLanguage, setPreferredLanguage] = useState("en");
 
   useEffect(() => {
+    //Load preferred language from session storage
+    const storedLang = sessionStorage.getItem("preferredLanguage");
+    if (storedLang) setPreferredLanguage(storedLang);
     const email = sessionStorage.getItem("userEmail");
     console.log("fetching history:", email);
     // Check if email is already in session storage
@@ -83,6 +173,34 @@ const ChatBox = () => {
       socket.off("receiveMessage");
     };
   }, []);
+
+  const habdleLanguageChange = async (e) => {
+    const newLang = e.target.value;
+    setPreferredLanguage(newLang);
+    sessionStorage.setItem("preferredLanguage", newLang); // Store in session storage
+    try {
+      const response = await fetch(
+        "http://localhost:4000/api/set-preferred-language",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: userEmail,
+            language: newLang,
+          }),
+        }
+      );
+      if (response.data.success) {
+        console.log("Preferred language updated successfully");
+      } else {
+        console.error("Failed to update preferred language");
+      }
+    } catch (error) {
+      console.error("Error updating preferred language:", error);
+    }
+  };
 
   const sendMessage = () => {
     if (input.trim() || image) {
@@ -209,6 +327,34 @@ const ChatBox = () => {
 
   return (
     <VStack p-2 spacing={4} align="stretch">
+      {/* Language Selection Dropdown */}
+      <Box mb={2} textAlign="right">
+        <label
+          htmlFor="language-select"
+          style={{ marginRight: "0.5rem", fontWeight: "bold" }}
+        >
+          🌐 Preferred Language:
+        </label>
+        <select
+          id="language-select"
+          value={preferredLanguage}
+          onChange={habdleLanguageChange}
+          style={{
+            padding: "0.4rem 1rem",
+            borderRadius: "6px",
+            border: "1px solid #ccc",
+            background: "#f9f9f9",
+            fontSize: "1rem",
+            minWidth: "140px",
+          }}
+        >
+          {LANGUAGES.map((lang) => (
+            <option key={lang.code} value={lang.code}>
+              {lang.name}
+            </option>
+          ))}
+        </select>
+      </Box>
       <Box h="400px" p={4} borderWidth={1} borderRadius="lg" overflowY="auto">
         {messages.map((msg, index) => (
           <HStack
