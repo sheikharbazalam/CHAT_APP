@@ -126,6 +126,8 @@ const ChatBox = () => {
     // Check if email is already in session storage
     if (email) {
       setUserEmail(email);
+      socket.emit("register", email); // Emit register event to backend with user's email
+      // Emit register event to backend with user's email
     }
 
     const fetchChatHistory = async () => {
@@ -216,7 +218,7 @@ const ChatBox = () => {
 
       socket.emit("sendMessage", message);
       //setMessages((prevMessages) => [...prevMessages, message]);
-      // setInput("");
+      setInput("");
       setImage(null);
       setReplyTo(null); // Clear replyTo after sending the message
     }
@@ -317,7 +319,7 @@ const ChatBox = () => {
       audioUrl: voiceUrl,
     };
     socket.emit("sendMessage", message);
-    setMessages((prevMessages) => [...prevMessages, message]);
+    //setMessages((prevMessages) => [...prevMessages, message]);
     scrollToBottom();
   };
 

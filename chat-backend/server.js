@@ -217,9 +217,14 @@ app.get("/api/chat-history", async (req, res) => {
     res.status(500).json({ error: "Error fetching chat history" });
   }
 });
-
+const userSockets = {};
 io.on("connection", async (socket) => {
   console.log("A user connected:", socket.id);
+  // Register user with their email
+  socket.on("register", async (email) => {
+    userSockets[email] = socket.id; // Store the socket ID for the user
+    console.log(`User registered: ${email} with socket ID: ${socket.id}`);
+  });
 
   //send previously stored message to the connected user
   /*User.find()
@@ -248,37 +253,61 @@ io.on("connection", async (socket) => {
         user = new User({
           email: message.email,
           password: message.password,
-          text: message.text,
-          //image: message.image || null,
-          ...(message.image && { image: message.image }),
+          // text: message.text,
+          // //image: message.image || null,
+          // ...(message.image && { image: message.image }),
         });
         await user.save();
       }
-      const recipient = await User.findOne({ email: message.email });
-      const targetLanguage = recipient?.preferredLanguage || "en"; // Default to English if no preference is set
+      // const recipient = await User.findOne({ email: message.toEmail });
+      // const targetLanguage = recipient?.preferredLanguage || "en"; // Default to English if no preference is set
 
-      let translatedText = message.text;
-      if (message.text && targetLanguage !== "en") {
-        translatedText = await translateMessage(message.text, targetLanguage);
+      // let translatedText = message.text;
+      // if (message.text && targetLanguage !== "en") {
+      //   translatedText = await translateMessage(message.text, targetLanguage);
+      // }
+
+      // const newMessage = new Message({
+      //   email: message.email,
+      //   password: message.password,
+      //   //text: message.text,
+      //   text: translatedText, // Use the translated text
+
+      //   //image: message.image || null, //it will handle image URL
+      //   ...(message.image && { image: message.image }),
+      // });
+      // await newMessage.save(); //save to mongoDB
+      // console.log("Message saved:", newMessage);
+      // Emit the message to all connected clients
+      //io.emit("receiveMessage", newMessage);
+      // Emit the message to the specific recipient
+      const allUsers = await User.find();
+      //for each user , translate and emit
+      for (const user of allUsers) {
+        let translatedText = message.text; // Default to original text if translation fails
+        if (message.text && user.preferredLanguage !== "en") {
+          translatedText = await translateMessage(
+            message.text,
+            user.preferredLanguage
+          );
+        }
+
+        //send to users socket only if they are connected
+        const socketId = userSockets[user.email];
+        if (socketId) {
+          io.to(socketId).emit("receiveMessage", {
+            ...message,
+            text: translatedText, // Use the translated text
+            userId: message.userId,
+          });
+        }
       }
 
-      const newMessage = new Message({
-        email: message.email,
-        password: message.password,
-        //text: message.text,
-        text: translatedText, // Use the translated text
-
-        //image: message.image || null, //it will handle image URL
-        ...(message.image && { image: message.image }),
-      });
-      await newMessage.save(); //save to mongoDB
-      console.log("Message saved:", newMessage);
-
-      io.emit("receiveMessage", {
-        ...message,
-        text: translatedText, // Use the translated text
-        userId: message.userId,
-      });
+      // io.emit("receiveMessage", {
+      //   ...message,
+      //   text: translatedText, // Use the translated text
+      //   userId: message.userId,
+      // });
     } catch (error) {
       console.log("Error saving message", error);
     }
