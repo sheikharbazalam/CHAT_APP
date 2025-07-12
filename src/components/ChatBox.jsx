@@ -64,6 +64,27 @@ const ChatBox = () => {
     }
   };
 
+  const handleChatGPTMessage = async () => {
+    try {
+      const response = await fetch("http://localhost:4000/chatgpt-message", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ message: input }),
+      });
+      const data = await response.json();
+      setMessages((prevMessages) => [
+        ...prevMessages,
+        { text: input, email: "thespoof1@gmail.com" },
+        { text: data.reply, email: "chatgpt@bot.com" },
+      ]);
+      setInput("");
+    } catch (error) {
+      console.error("Error fetching chatgpt message:", error);
+    }
+  };
+
   //handle the message to send when press enter button
 
   const handleKeyPress = (e) => {
@@ -111,7 +132,7 @@ const ChatBox = () => {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyPress={handleKeyPress}
-          placeholder="Type a message"
+          placeholder="Type a message here..."
         />
         {/*'+' Icon for uploading an image */}
 
@@ -119,11 +140,14 @@ const ChatBox = () => {
           id="image-upload"
           type="file"
           accept="image/*"
-          style={{ display: "noe" }}
+          style={{ display: "none" }}
           onChange={handleImages}
         />
         <Button onClick={sendMessage} colorScheme="teal">
           Send
+        </Button>
+        <Button onClick={handleChatGPTMessage} colorScheme="purple">
+          Ask ChatGPT
         </Button>
       </HStack>
     </VStack>

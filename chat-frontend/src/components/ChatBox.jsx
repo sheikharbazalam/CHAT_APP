@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import MessageBubble from "./MessageBubble"; // Import the MessageBubble component
 
 import { FaPlus, FaPaperPlane } from "react-icons/fa";
 import {
@@ -26,6 +27,7 @@ const ChatBox = () => {
   const [userEmail, setUserEmail] = useState(null);
   //
   const messagesEndRef = useRef(null);
+  const [replyTo, setReplyTo] = useState(null);
   //const userEmail = sessionStorage.getItem("userEmail");
 
   useEffect(() => {
@@ -48,15 +50,6 @@ const ChatBox = () => {
       }
       console.log("Stored email:", sessionStorage.getItem("userEmail"));
     };
-
-    /*axios
-      .get("http://localhost:4000/api/chat-history?email=thespoof1@gmail.com")
-      .then((response) => {
-        setMessages(response.data); //Set the fetched chat history
-      })
-      .catch((error) => {
-        console.error("Error fetching Chat History", error);
-      });*/
 
     // Generate or get userId from session storage
     let storedUserId = sessionStorage.getItem("userId");
@@ -96,6 +89,7 @@ const ChatBox = () => {
       const message = {
         email: userEmail,
         //password: sessionStorage.getItem("password") || "", // Assuming password is stored in session storage
+        replyTo: replyTo?._id || null, // Include replyTo if set
 
         userId,
         text: input.trim() ? input : null,
@@ -104,8 +98,29 @@ const ChatBox = () => {
 
       socket.emit("sendMessage", message);
       //setMessages((prevMessages) => [...prevMessages, message]);
-      setInput("");
+      // setInput("");
       setImage(null);
+      setReplyTo(null); // Clear replyTo after sending the message
+    }
+  };
+  const handleChatGPTMessage = async (userInput) => {
+    try {
+      const response = await fetch("http://localhost:4000/chatgpt-message", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ message: input }),
+      });
+      const data = await response.json();
+      setMessages((prevMessages) => [
+        ...prevMessages,
+        { text: userInput, email: userEmail }, // Add user's input
+        { text: data.reply, email: "chatgpt@bot.com" },
+      ]);
+      setInput("");
+    } catch (error) {
+      console.error("Error fetching chatgpt message:", error);
     }
   };
 
@@ -117,34 +132,36 @@ const ChatBox = () => {
     }
   };
 
+  //reply
+
   //Handle image selection
-  const handleImages = (e) => {
+  const handleImages = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+
     const formData = new FormData();
     formData.append("image", file);
 
     try {
-      fetch("http://localhost:4000/upload-image", {
+      const res = await fetch("http://localhost:4000/upload-image", {
         method: "POST",
         body: formData,
-      })
-        .then((response) => response.json())
-        .then((data) => {
-          console.log("Image uploaded:", data);
-          setMessages((prevMessages) => [
-            ...prevMessages,
-            { userId, image: data.imageUrl },
-          ]);
-          scrollToBottom();
-        })
-        .catch((error) => {
-          console.error("Error uploading image:", error);
-        });
+      });
+      const data = await res.json();
+      console.log("Image uploaded:", data);
+
+      const message = {
+        userId,
+        email: userEmail,
+        text: null,
+        image: data.imageUrl, // Assuming the server returns the image URL
+      };
+      socket.emit("sendMessage", message);
+      setImage(null);
+      e.target.value = ""; // Clear the input field
     } catch (error) {
       console.error("Error uploading image:", error);
     }
-    setImage(file);
   };
 
   const scrollToBottom = () => {
@@ -186,6 +203,10 @@ const ChatBox = () => {
     scrollToBottom();
   };
 
+  const handleReply = (message) => {
+    setReplyTo(message);
+  };
+
   return (
     <VStack p-2 spacing={4} align="stretch">
       <Box h="400px" p={4} borderWidth={1} borderRadius="lg" overflowY="auto">
@@ -195,7 +216,7 @@ const ChatBox = () => {
             justify={msg.email === userEmail ? "flex-start" : "flex-end"}
             mb={2}
           >
-            {msg.email === userEmail && <Avatar name="Me" />}
+            {msg.email === userEmail && <Avatar name={msg.email} />}
             <Box
               bg={msg.email === userEmail ? "blue.100" : "green.100"}
               p={3}
@@ -205,7 +226,11 @@ const ChatBox = () => {
               {msg.text && <Text>{msg.text}</Text>}
 
               {msg.image && (
-                <img src={msg.image} alt="Sent" style={{ maxWidth: "100px" }} />
+                <img
+                  src={msg.image}
+                  alt="Sent"
+                  style={{ maxWidth: "100px", borderRadius: "20px" }}
+                />
               )}
               {msg.audioUrl && (
                 <audio
@@ -229,7 +254,28 @@ const ChatBox = () => {
                 </audio>
               )}
             </Box>
-            {msg.userId !== userId && <Avatar name="Other" />}
+            {msg.userId !== userId && <Avatar name={msg.email} />}
+            {replyTo && (
+              <Box bg="gray.100" p={2} borderRadius="md" mt={2} mb={2}>
+                Replying to : {replyTo.text || "Image"}
+                <Button
+                  size="xs"
+                  colorScheme="red"
+                  onClick={() => setReplyTo(null)}
+                  ml={2}
+                >
+                  Cancel
+                </Button>
+                {messages.map((msg, index) => (
+                  <MessageBubble
+                    key={msg._id || index}
+                    message={msg}
+                    onReply={handleReply}
+                    currentUserEmail={userEmail}
+                  />
+                ))}
+              </Box>
+            )}
           </HStack>
         ))}
         <div ref={messagesEndRef} />
@@ -266,6 +312,9 @@ const ChatBox = () => {
           leftIcon={<FaPaperPlane />}
         >
           Send
+        </Button>
+        <Button onClick={handleChatGPTMessage} colorScheme="purple">
+          Ask ChatGPT
         </Button>
       </HStack>
     </VStack>

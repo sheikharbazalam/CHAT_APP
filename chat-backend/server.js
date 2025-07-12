@@ -1,5 +1,6 @@
 require("dotenv").config();
 const express = require("express");
+const axios = require("axios");
 const http = require("http");
 const { Server } = require("socket.io");
 const multer = require("multer");
@@ -12,6 +13,7 @@ const path = require("path");
 
 const app = express();
 app.use(cors());
+app.use(express.json({ limit: "50mb" })); // Increase the limit to 50mb
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 const storage = multer.diskStorage({
@@ -24,8 +26,8 @@ const upload = multer({ storage: storage });
 
 //image upload
 app.post("/upload-image", upload.single("image"), (req, res) => {
-  const imageUrl = `/uploads/${req.file.filename}`;
-  res.json({ imageUrl });
+  const filePath = `http://localhost:4000/uploads/${req.file.filename}`;
+  res.json({ imageUrl: filePath });
   //save the path if userId to DB if required
   res.status(200).json({ message: "uploaded", url: imageUrl });
 });
@@ -38,6 +40,33 @@ app.post("/upload-voice", upload.single("voice"), (req, res) => {
   const filePath = `/uploads/${req.file.filename}`;
   //save the path if userId to DB if required
   res.status(200).json({ message: "uploaded", url: filePath });
+});
+
+//chatgpt message api integration
+app.post("/chatgpt-message", async (req, res) => {
+  const { message } = req.body;
+  try {
+    const response = await axios.post(
+      " https://api.openai.com/v1/chat/completions",
+      {
+        model: "gpt-3.5-turbo",
+        messages: [{ role: "user", content: message }],
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.OPPEN_AI_API_KEY}`,
+        },
+      }
+    );
+    res.json({ reply: response.choices[0].message.content });
+  } catch (error) {
+    console.log(
+      "Error fetching chatgpt message:",
+      error.response?.data || error.message
+    );
+    res.status(500).json({ error: "Error fetching chatgpt message" });
+  }
 });
 //app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -80,7 +109,7 @@ const messageSchema = new mongoose.Schema({
   },
   text: {
     type: String,
-    required: true,
+    required: false,
   },
 
   image: {
@@ -88,6 +117,14 @@ const messageSchema = new mongoose.Schema({
     required: false,
   },
   timeStamp: {
+    type: Date,
+    default: Date.now,
+  },
+  replyTo: {
+    type: mongoose.Schema.Types.Mixed,
+    default: null, // Allow null for no reply
+  },
+  createdAt: {
     type: Date,
     default: Date.now,
   },
@@ -100,8 +137,7 @@ const messageSchema = new mongoose.Schema({
 mongoose
   .connect(process.env.MONGODB_URI, {
     connectTimeoutMS: 30000,
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
+
     //useCreateIndex: true, // Use this if you are using an older version of mongoose
   })
   .then(() => console.log("mongodb connected"))
