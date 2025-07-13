@@ -10,6 +10,7 @@ const mongoose = require("mongoose");
 
 const timeStamp = require("timeStamp");
 const path = require("path");
+const activeUsers = []; // Array to keep track of active users
 
 const app = express();
 app.use(cors());
@@ -218,12 +219,17 @@ app.get("/api/chat-history", async (req, res) => {
   }
 });
 const userSockets = {};
+// Object to keep track of user socket IDs by email
 io.on("connection", async (socket) => {
   console.log("A user connected:", socket.id);
   // Register user with their email
   socket.on("register", async (email) => {
     userSockets[email] = socket.id; // Store the socket ID for the user
     console.log(`User registered: ${email} with socket ID: ${socket.id}`);
+    if (!activeUsers.find((u) => u.email === email)) {
+      activeUsers.push({ email, socketId: socket.id });
+    }
+    console.log("Active users:", activeUsers);
   });
 
   //send previously stored message to the connected user
@@ -314,6 +320,18 @@ io.on("connection", async (socket) => {
   });
 
   socket.on("disconnect", () => {
+    for (const email in userSockets) {
+      if (userSockets[email] === socket.id) {
+        delete userSockets[email]; // Remove the user from the userSockets object
+        const idx = activeUsers.findIndex((u) => u.email === email);
+        if (idx !== -1) {
+          activeUsers.splice(idx, 1); // Remove the user from the activeUsers array
+        }
+        console.log(`User disconnected: ${email}`);
+        break;
+      }
+    }
+    io.emit("activeUsers", activeUsers); // Emit the updated list of active users
     console.log("A user disconnected");
   });
 });

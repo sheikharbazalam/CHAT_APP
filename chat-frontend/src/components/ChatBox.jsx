@@ -116,6 +116,8 @@ const ChatBox = () => {
   const [replyTo, setReplyTo] = useState(null);
   //const userEmail = sessionStorage.getItem("userEmail");
   const [preferredLanguage, setPreferredLanguage] = useState("en");
+  //for active users
+  const [activeUsers, setActiveUsers] = useState([]);
 
   useEffect(() => {
     //Load preferred language from session storage
@@ -129,6 +131,11 @@ const ChatBox = () => {
       socket.emit("register", email); // Emit register event to backend with user's email
       // Emit register event to backend with user's email
     }
+
+    //active users
+    socket.on("activeUsers", (users) => {
+      setActiveUsers(users);
+    });
 
     const fetchChatHistory = async () => {
       try {
@@ -172,6 +179,7 @@ const ChatBox = () => {
 
     return () => {
       //socket.off("previousMessagesSent");
+      socket.off("activeUsers");
       socket.off("receiveMessage");
     };
   }, []);
@@ -328,144 +336,211 @@ const ChatBox = () => {
   };
 
   return (
-    <VStack p-2 spacing={4} align="stretch">
-      {/* Language Selection Dropdown */}
-      <Box mb={2} textAlign="right">
-        <label
-          htmlFor="language-select"
-          style={{ marginRight: "0.5rem", fontWeight: "bold" }}
-        >
-          🌐 Preferred Language:
-        </label>
-        <select
-          id="language-select"
-          value={preferredLanguage}
-          onChange={habdleLanguageChange}
-          style={{
-            padding: "0.4rem 1rem",
-            borderRadius: "6px",
-            border: "1px solid #ccc",
-            background: "#f9f9f9",
-            fontSize: "1rem",
-            minWidth: "140px",
-          }}
-        >
-          {LANGUAGES.map((lang) => (
-            <option key={lang.code} value={lang.code}>
-              {lang.name}
-            </option>
-          ))}
-        </select>
+    <HStack align="stretch" w="100%" height="100%" spacing={0}>
+      {/* Active Users List */}
+      <Box
+        w={{ base: "100%", md: "300px" }}
+        bg={"gray.50"}
+        borderWidth={1}
+        borderRadius="lg"
+        p={4}
+        minH="100vh"
+        boxShadow={"md"}
+        display="flex"
+        flexDirection="column"
+        justifyContent="space-between"
+      >
+        <Box>
+          <Text fontSize="lg" fontWeight="bold" mb={2}>
+            Active Users
+          </Text>
+
+          <Text fontSize="sm" color="gray.500" mb={2}>
+            {activeUsers.length} online
+          </Text>
+          <VStack align="stretch" spacing={3}>
+            {activeUsers.map((user) => (
+              <HStack
+                key={user.id || user.socketId || user.email}
+                spacing={3}
+                bg={user.email === userEmail ? "teal.100" : "white"}
+                borderRadius="md"
+                p={2}
+                boxShadow={user.email === userEmail ? "sm" : "none"}
+              >
+                <Avatar size="sm" name={user.email} />
+                <Box flex="1">
+                  <Text
+                    fontWeight={user.email === userEmail ? "bold" : "normal"}
+                    fontSize="sm"
+                    color={user.email === userEmail ? "teal.700" : "gray.700"}
+                    isTruncated
+                  >
+                    {user.email}
+                  </Text>
+                </Box>
+                {user.email === userEmail && (
+                  <Box
+                    bg="teal.400"
+                    color="white"
+                    px={2}
+                    py={1}
+                    borderRadius="md"
+                    fontSize="xs"
+                    fontWeight="bold"
+                  >
+                    You
+                  </Box>
+                )}
+              </HStack>
+            ))}
+          </VStack>
+        </Box>
+        <Box mt={8}>
+          <Text fontSize="xs" color="gray.400" textAlign="center">
+            Chat App &copy; 2025
+          </Text>
+        </Box>
       </Box>
-      <Box h="400px" p={4} borderWidth={1} borderRadius="lg" overflowY="auto">
-        {messages.map((msg, index) => (
-          <HStack
-            key={index}
-            justify={msg.email === userEmail ? "flex-start" : "flex-end"}
-            mb={2}
+      <VStack flex="1" p={4} spacing={4} align="stretch" w="100%">
+        {/* Language Selection Dropdown */}
+        <Box mb={2} textAlign="right">
+          <label
+            htmlFor="language-select"
+            style={{ marginRight: "0.5rem", fontWeight: "bold" }}
           >
-            {msg.email === userEmail && <Avatar name={msg.email} />}
-            <Box
-              bg={msg.email === userEmail ? "blue.100" : "green.100"}
-              p={3}
-              borderRadius="lg"
-              maxW="70%"
+            🌐 Preferred Language:
+          </label>
+          <select
+            id="language-select"
+            value={preferredLanguage}
+            onChange={habdleLanguageChange}
+            style={{
+              padding: "0.4rem 1rem",
+              borderRadius: "6px",
+              border: "1px solid #ccc",
+              background: "#f9f9f9",
+              fontSize: "1rem",
+              minWidth: "140px",
+            }}
+          >
+            {LANGUAGES.map((lang) => (
+              <option key={lang.code} value={lang.code}>
+                {lang.name}
+              </option>
+            ))}
+          </select>
+        </Box>
+        <Box h="100vh"  p={4} borderWidth={2} borderRadius="lg" overflowY="auto">
+          {messages.map((msg, index) => (
+            <HStack
+              key={index}
+              justify={msg.email === userEmail ? "flex-start" : "flex-end"}
+              mb={2}
             >
-              {msg.text && <Text>{msg.text}</Text>}
+              {msg.email === userEmail && <Avatar name={msg.email} />}
+              <Box
+                bg={msg.email === userEmail ? "blue.100" : "green.100"}
+                p={3}
+                borderRadius="lg"
+                maxW="70%"
+              >
+                {msg.text && <Text>{msg.text}</Text>}
 
-              {msg.image && (
-                <img
-                  src={msg.image}
-                  alt="Sent"
-                  style={{ maxWidth: "100px", borderRadius: "20px" }}
-                />
-              )}
-              {msg.audioUrl && (
-                <audio
-                  controls
-                  onLoadedMetadata={(e) => {
-                    const duration = e.target.duration;
-                    console.log(`Audio duration: ${duration} seconds`);
-                  }}
-                >
-                  <source
-                    src={`http://localhost:4000${msg.audioUrl}`}
-                    type="audio/webm"
+                {msg.image && (
+                  <img
+                    src={msg.image}
+                    alt="Sent"
+                    style={{ maxWidth: "100px", borderRadius: "20px" }}
                   />
-                  Your browser does not support the audio element.
-                </audio>
-              )}
-              {msg.voice && (
-                <audio controls>
-                  <source src={msg.voice} type="audio/webm" />
-                  Your browser does not support the audio element.
-                </audio>
-              )}
-            </Box>
-            {msg.userId !== userId && <Avatar name={msg.email} />}
-            {replyTo && (
-              <Box bg="gray.100" p={2} borderRadius="md" mt={2} mb={2}>
-                Replying to : {replyTo.text || "Image"}
-                <Button
-                  size="xs"
-                  colorScheme="red"
-                  onClick={() => setReplyTo(null)}
-                  ml={2}
-                >
-                  Cancel
-                </Button>
-                {messages.map((msg, index) => (
-                  <MessageBubble
-                    key={msg._id || index}
-                    message={msg}
-                    onReply={handleReply}
-                    currentUserEmail={userEmail}
-                  />
-                ))}
+                )}
+                {msg.audioUrl && (
+                  <audio
+                    controls
+                    onLoadedMetadata={(e) => {
+                      const duration = e.target.duration;
+                      console.log(`Audio duration: ${duration} seconds`);
+                    }}
+                  >
+                    <source
+                      src={`http://localhost:4000${msg.audioUrl}`}
+                      type="audio/webm"
+                    />
+                    Your browser does not support the audio element.
+                  </audio>
+                )}
+                {msg.voice && (
+                  <audio controls>
+                    <source src={msg.voice} type="audio/webm" />
+                    Your browser does not support the audio element.
+                  </audio>
+                )}
               </Box>
-            )}
-          </HStack>
-        ))}
-        <div ref={messagesEndRef} />
-      </Box>
+              {msg.userId !== userId && <Avatar name={msg.email} />}
+              {replyTo && (
+                <Box bg="gray.100" p={2} borderRadius="md" mt={2} mb={2}>
+                  Replying to : {replyTo.text || "Image"}
+                  <Button
+                    size="xs"
+                    colorScheme="red"
+                    onClick={() => setReplyTo(null)}
+                    ml={2}
+                  >
+                    Cancel
+                  </Button>
+                  {messages.map((msg, index) => (
+                    <MessageBubble
+                      key={msg._id || index}
+                      message={msg}
+                      onReply={handleReply}
+                      currentUserEmail={userEmail}
+                    />
+                  ))}
+                </Box>
+              )}
+            </HStack>
+          ))}
+          <div ref={messagesEndRef} />
+        </Box>
 
-      <HStack>
-        <Input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyPress={handleKeyPress}
-          placeholder="Type a message"
-        />
-        {/*'+' Icon for uploading an image */}
-        <IconButton
-          as="label"
-          htmlFor="image-upload"
-          icon={<FaPlus />}
-          colorScheme="teal"
-          aria-label="Upload Image"
-          cursor={"pointer"}
-          variant="outline"
-        />
-        <input
-          id="image-upload"
-          type="file"
-          accept="image/*"
-          style={{ display: "none" }}
-          onChange={handleImages}
-        />
-        <VoiceRecorder onSendVoice={handleSendVoice} />
-        <Button
-          onClick={sendMessage}
-          colorScheme="teal"
-          leftIcon={<FaPaperPlane />}
-        >
-          Send
-        </Button>
-        <Button onClick={handleChatGPTMessage} colorScheme="purple">
-          Ask ChatGPT
-        </Button>
-      </HStack>
-    </VStack>
+        <HStack>
+          <Input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder="Type a message"
+          />
+          {/*'+' Icon for uploading an image */}
+          <IconButton
+            as="label"
+            htmlFor="image-upload"
+            icon={<FaPlus />}
+            colorScheme="teal"
+            aria-label="Upload Image"
+            cursor={"pointer"}
+            variant="outline"
+          />
+          <input
+            id="image-upload"
+            type="file"
+            accept="image/*"
+            style={{ display: "none" }}
+            onChange={handleImages}
+          />
+          <VoiceRecorder onSendVoice={handleSendVoice} />
+          <Button
+            onClick={sendMessage}
+            colorScheme="teal"
+            leftIcon={<FaPaperPlane />}
+          >
+            Send
+          </Button>
+          <Button onClick={handleChatGPTMessage} colorScheme="purple">
+            Ask ChatGPT
+          </Button>
+        </HStack>
+      </VStack>
+    </HStack>
   );
 };
 
