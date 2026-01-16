@@ -7,6 +7,7 @@ import { useAuth0 } from "@auth0/auth0-react";
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import { useEffect } from "react";
+import Landing_Page from "./components/Landing_Page";
 
 function App() {
   const { isAuthenticated, user } = useAuth0();
@@ -23,6 +24,7 @@ function App() {
     <Router>
       <div>
         <Navbar />
+        <Landing_Page />
         {isAuthenticated ? (
           <Routes>
             <Route path="/" element={<Home />} />
